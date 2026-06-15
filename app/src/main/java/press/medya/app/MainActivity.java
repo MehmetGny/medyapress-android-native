@@ -13,7 +13,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
-import android.webkit.CookieManager;
 import android.content.Intent;
 import android.net.Uri;
 import android.widget.FrameLayout;
@@ -24,11 +23,6 @@ public class MainActivity extends Activity {
 ```
 private static final String SITE_URL = "https://medya.press/";
 private static final long AUTO_REFRESH_MS = 120000; // 2 dakika
-
-private static final String MOBILE_USER_AGENT =
-        "Mozilla/5.0 (Linux; Android 14; Mobile) " +
-        "AppleWebKit/537.36 (KHTML, like Gecko) " +
-        "Chrome/126.0.0.0 Mobile Safari/537.36";
 
 private WebView webView;
 private ProgressBar progressBar;
@@ -80,6 +74,8 @@ private void setupWindow() {
 private void setupWebView() {
     FrameLayout root = new FrameLayout(this);
     root.setBackgroundColor(Color.WHITE);
+
+    // Telefon saat / batarya alanı sitenin üstüne binmesin diye güvenli boşluk.
     root.setPadding(0, getStatusBarHeight(), 0, 0);
 
     webView = new WebView(this);
@@ -107,22 +103,17 @@ private void setupWebView() {
 
     WebSettings settings = webView.getSettings();
 
-    settings.setUserAgentString(MOBILE_USER_AGENT);
-
     settings.setJavaScriptEnabled(true);
     settings.setDomStorageEnabled(true);
     settings.setDatabaseEnabled(true);
     settings.setLoadsImagesAutomatically(true);
 
-    /*
-     * Mobil görünüm için önemli:
-     * useWideViewPort true olmalı ki sitenin viewport meta etiketi çalışsın.
-     * loadWithOverviewMode false olmalı ki desktop sayfayı küçültüp göstermesin.
-     */
-    settings.setUseWideViewPort(true);
+    // Bu görünüm, hoşuna giden gazete/masaüstüye yakın ana sayfa düzenini korur.
+    settings.setUseWideViewPort(false);
     settings.setLoadWithOverviewMode(false);
 
-    settings.setTextZoom(100);
+    // Haber içi yazılar küçük kalmasın diye genel WebView yazı ölçeği biraz büyütüldü.
+    settings.setTextZoom(115);
 
     settings.setBuiltInZoomControls(false);
     settings.setDisplayZoomControls(false);
@@ -139,15 +130,7 @@ private void setupWebView() {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
     }
 
-    CookieManager cookieManager = CookieManager.getInstance();
-    cookieManager.setAcceptCookie(true);
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-        cookieManager.setAcceptThirdPartyCookies(webView, true);
-    }
-
-    webView.clearCache(true);
-    webView.clearHistory();
+    webView.clearCache(false);
 
     webView.setWebChromeClient(new WebChromeClient() {
         @Override
@@ -180,7 +163,7 @@ private void setupWebView() {
         @Override
         public void onPageFinished(WebView view, String url) {
             super.onPageFinished(view, url);
-            forceMobileViewport(view);
+            keepLayoutAndImproveArticleReading(view);
         }
 
         private boolean handleUrl(String url) {
@@ -204,30 +187,50 @@ private void setupWebView() {
     });
 }
 
-private void forceMobileViewport(WebView view) {
+private void keepLayoutAndImproveArticleReading(WebView view) {
     if (view == null) {
         return;
     }
 
     String js =
             "(function() {" +
-                    "var head = document.head || document.getElementsByTagName('head')[0];" +
-                    "if (head) {" +
-                    "var meta = document.querySelector('meta[name=\"viewport\"]');" +
-                    "if (!meta) {" +
-                    "meta = document.createElement('meta');" +
-                    "meta.name = 'viewport';" +
-                    "head.appendChild(meta);" +
-                    "}" +
-                    "meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');" +
-                    "}" +
-                    "document.documentElement.style.width = '100%';" +
+                    "var currentUrl = window.location.href || '';" +
+
                     "document.documentElement.style.maxWidth = '100%';" +
                     "document.documentElement.style.overflowX = 'hidden';" +
+
                     "if (document.body) {" +
-                    "document.body.style.width = '100%';" +
                     "document.body.style.maxWidth = '100%';" +
                     "document.body.style.overflowX = 'hidden';" +
+                    "}" +
+
+                    "var isHome = currentUrl === 'https://medya.press/' || currentUrl === 'https://medya.press';" +
+                    "var isSingle = document.body && (" +
+                    "document.body.className.indexOf('single') !== -1 || " +
+                    "document.body.className.indexOf('post-template') !== -1" +
+                    ");" +
+
+                    "if (!isHome && isSingle) {" +
+                    "var style = document.getElementById('mp-app-reading-style');" +
+                    "if (!style) {" +
+                    "style = document.createElement('style');" +
+                    "style.id = 'mp-app-reading-style';" +
+                    "style.innerHTML = " +
+                    "'.entry-content p, .post-content p, .s-post-content p, .the-post p, article p {' +" +
+                    "'font-size: 20px !important;' +" +
+                    "'line-height: 1.75 !important;' +" +
+                    "'letter-spacing: 0 !important;' +" +
+                    "}' +" +
+                    "'.entry-content li, .post-content li, .s-post-content li, .the-post li, article li {' +" +
+                    "'font-size: 20px !important;' +" +
+                    "'line-height: 1.75 !important;' +" +
+                    "}' +" +
+                    "'.entry-content, .post-content, .s-post-content, .the-post {' +" +
+                    "'max-width: 100% !important;' +" +
+                    "'overflow-x: hidden !important;' +" +
+                    "}';" +
+                    "document.head.appendChild(style);" +
+                    "}" +
                     "}" +
                     "})();";
 
