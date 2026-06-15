@@ -22,7 +22,7 @@ public class MainActivity extends Activity {
 
 ```
 private static final String SITE_URL = "https://medya.press/";
-private static final long AUTO_REFRESH_MS = 120000; // 2 dakika
+private static final long AUTO_REFRESH_MS = 120000;
 
 private WebView webView;
 private ProgressBar progressBar;
@@ -74,8 +74,6 @@ private void setupWindow() {
 private void setupWebView() {
     FrameLayout root = new FrameLayout(this);
     root.setBackgroundColor(Color.WHITE);
-
-    // Telefon saat / batarya alanı sitenin üstüne binmesin diye güvenli boşluk.
     root.setPadding(0, getStatusBarHeight(), 0, 0);
 
     webView = new WebView(this);
@@ -108,11 +106,9 @@ private void setupWebView() {
     settings.setDatabaseEnabled(true);
     settings.setLoadsImagesAutomatically(true);
 
-    // Bu görünüm, hoşuna giden gazete/masaüstüye yakın ana sayfa düzenini korur.
     settings.setUseWideViewPort(false);
     settings.setLoadWithOverviewMode(false);
 
-    // Haber içi yazılar küçük kalmasın diye genel WebView yazı ölçeği biraz büyütüldü.
     settings.setTextZoom(115);
 
     settings.setBuiltInZoomControls(false);
@@ -163,7 +159,7 @@ private void setupWebView() {
         @Override
         public void onPageFinished(WebView view, String url) {
             super.onPageFinished(view, url);
-            keepLayoutAndImproveArticleReading(view);
+            improveArticleReading(view);
         }
 
         private boolean handleUrl(String url) {
@@ -187,51 +183,32 @@ private void setupWebView() {
     });
 }
 
-private void keepLayoutAndImproveArticleReading(WebView view) {
+private void improveArticleReading(WebView view) {
     if (view == null) {
         return;
     }
 
     String js =
-            "(function() {" +
-                    "var currentUrl = window.location.href || '';" +
-
-                    "document.documentElement.style.maxWidth = '100%';" +
-                    "document.documentElement.style.overflowX = 'hidden';" +
-
-                    "if (document.body) {" +
-                    "document.body.style.maxWidth = '100%';" +
-                    "document.body.style.overflowX = 'hidden';" +
-                    "}" +
-
-                    "var isHome = currentUrl === 'https://medya.press/' || currentUrl === 'https://medya.press';" +
-                    "var isSingle = document.body && (" +
-                    "document.body.className.indexOf('single') !== -1 || " +
-                    "document.body.className.indexOf('post-template') !== -1" +
-                    ");" +
-
-                    "if (!isHome && isSingle) {" +
-                    "var style = document.getElementById('mp-app-reading-style');" +
-                    "if (!style) {" +
-                    "style = document.createElement('style');" +
-                    "style.id = 'mp-app-reading-style';" +
-                    "style.innerHTML = " +
-                    "'.entry-content p, .post-content p, .s-post-content p, .the-post p, article p {' +" +
-                    "'font-size: 20px !important;' +" +
-                    "'line-height: 1.75 !important;' +" +
-                    "'letter-spacing: 0 !important;' +" +
-                    "}' +" +
-                    "'.entry-content li, .post-content li, .s-post-content li, .the-post li, article li {' +" +
-                    "'font-size: 20px !important;' +" +
-                    "'line-height: 1.75 !important;' +" +
-                    "}' +" +
-                    "'.entry-content, .post-content, .s-post-content, .the-post {' +" +
-                    "'max-width: 100% !important;' +" +
-                    "'overflow-x: hidden !important;' +" +
-                    "}';" +
+            "(function(){" +
+                    "if(!document.body || !document.head){return;}" +
+                    "var cls=document.body.className || '';" +
+                    "var isSingle=cls.indexOf('single')!==-1 || cls.indexOf('post-template')!==-1;" +
+                    "if(!isSingle){return;}" +
+                    "var style=document.getElementById('mp-app-reading-style');" +
+                    "if(!style){" +
+                    "style=document.createElement('style');" +
+                    "style.id='mp-app-reading-style';" +
+                    "style.innerHTML='" +
+                    ".entry-content p,.post-content p,.s-post-content p,.the-post p,article p{font-size:20px!important;line-height:1.75!important;letter-spacing:0!important;}" +
+                    ".entry-content li,.post-content li,.s-post-content li,.the-post li,article li{font-size:20px!important;line-height:1.75!important;}" +
+                    ".entry-content,.post-content,.s-post-content,.the-post,article{max-width:100%!important;overflow-x:hidden!important;}" +
+                    "';" +
                     "document.head.appendChild(style);" +
                     "}" +
-                    "}" +
+                    "document.documentElement.style.maxWidth='100%';" +
+                    "document.documentElement.style.overflowX='hidden';" +
+                    "document.body.style.maxWidth='100%';" +
+                    "document.body.style.overflowX='hidden';" +
                     "})();";
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
