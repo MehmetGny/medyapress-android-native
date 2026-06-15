@@ -16,12 +16,15 @@ import android.view.inputmethod.EditorInfo;
 import android.content.Intent;
 import android.net.Uri;
 import android.widget.*;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+
 import javax.net.ssl.HttpsURLConnection;
 
 public class MainActivity extends Activity {
@@ -29,6 +32,7 @@ public class MainActivity extends Activity {
     private static final String SITE_URL = "https://medya.press/";
     private static final String API_URL = "https://medya.press/wp-json/wp/v2/posts?_embed=1&per_page=20";
     private static final String THEME_COLOR = "#f58220";
+
     private LinearLayout list;
     private TextView status;
     private EditText search;
@@ -43,10 +47,12 @@ public class MainActivity extends Activity {
 
     private void buildUi() {
         ScrollView scroll = new ScrollView(this);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(14), dp(14), dp(14), dp(30));
-        root.setBackgroundColor(Color.rgb(247,247,247));
+        root.setBackgroundColor(Color.rgb(247, 247, 247));
+
         scroll.addView(root);
         setContentView(scroll);
 
@@ -67,15 +73,22 @@ public class MainActivity extends Activity {
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.setPadding(dp(12), 0, 0, 0);
-        top.addView(brand, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        top.addView(
+                brand,
+                new LinearLayout.LayoutParams(
+                        0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1
+                )
+        );
 
-        TextView title = text(APP_NAME, 26, Color.rgb(18,18,18), true);
+        TextView title = text(APP_NAME, 26, Color.rgb(18, 18, 18), true);
         brand.addView(title);
 
-        TextView slogan = text("Dünyayı Sizin İçin Takip Ediyoruz!", 13, Color.rgb(96,96,96), false);
+        TextView slogan = text("Dünyayı Sizin İçin Takip Ediyoruz!", 13, Color.rgb(96, 96, 96), false);
         brand.addView(slogan);
 
-        TextView refresh = button("YENİLE", "#ffffff", Color.rgb(20,20,20));
+        TextView refresh = button("YENİLE", "#ffffff", Color.rgb(20, 20, 20));
         refresh.setOnClickListener(v -> loadPosts());
         top.addView(refresh, new LinearLayout.LayoutParams(dp(92), dp(46)));
 
@@ -86,13 +99,20 @@ public class MainActivity extends Activity {
         search.setTextSize(18);
         search.setPadding(dp(18), 0, dp(18), 0);
         search.setBackground(round("#ffffff", 18, "#ececec"));
-        root.addView(search, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56)));
+        root.addView(
+                search,
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        dp(56)
+                )
+        );
+
         search.setOnEditorActionListener((v, actionId, event) -> {
             filterPosts(search.getText().toString());
             return false;
         });
 
-        status = text("Haberler yükleniyor...", 14, Color.rgb(85,85,85), false);
+        status = text("Haberler yükleniyor...", 14, Color.rgb(85, 85, 85), false);
         status.setPadding(0, dp(12), 0, dp(8));
         root.addView(status);
 
@@ -104,13 +124,20 @@ public class MainActivity extends Activity {
     private void loadPosts() {
         list.removeAllViews();
         status.setText("Haberler yükleniyor...");
+
         new AsyncTask<Void, Void, String>() {
-            protected String doInBackground(Void... v) { return get(API_URL); }
+            @Override
+            protected String doInBackground(Void... v) {
+                return fetch(API_URL);
+            }
+
+            @Override
             protected void onPostExecute(String result) {
                 if (result == null) {
                     status.setText("Haber akışı alınamadı.");
                     return;
                 }
+
                 try {
                     allPosts = new JSONArray(result);
                     renderPosts(allPosts);
@@ -121,19 +148,29 @@ public class MainActivity extends Activity {
         }.execute();
     }
 
-    private String get(String src) {
+    private String fetch(String src) {
         try {
             URL url = new URL(src);
             HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
+
             con.setRequestProperty("Accept", "application/json");
             con.setConnectTimeout(10000);
             con.setReadTimeout(18000);
-            BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+
+            BufferedReader br = new BufferedReader(
+                    new InputStreamReader(con.getInputStream())
+            );
+
             StringBuilder sb = new StringBuilder();
             String line;
-            while ((line = br.readLine()) != null) sb.append(line);
+
+            while ((line = br.readLine()) != null) {
+                sb.append(line);
+            }
+
             br.close();
             return sb.toString();
+
         } catch (Exception e) {
             return null;
         }
@@ -145,15 +182,31 @@ public class MainActivity extends Activity {
                 renderPosts(allPosts);
                 return;
             }
+
             JSONArray filtered = new JSONArray();
             String needle = q.toLowerCase();
+
             for (int i = 0; i < allPosts.length(); i++) {
                 JSONObject p = allPosts.getJSONObject(i);
-                String title = clean(p.getJSONObject("title").optString("rendered", ""));
-                String excerpt = clean(p.getJSONObject("excerpt").optString("rendered", ""));
-                if (title.toLowerCase().contains(needle) || excerpt.toLowerCase().contains(needle)) filtered.put(p);
+
+                String title = clean(
+                        p.getJSONObject("title").optString("rendered", "")
+                );
+
+                String excerpt = clean(
+                        p.getJSONObject("excerpt").optString("rendered", "")
+                );
+
+                if (
+                        title.toLowerCase().contains(needle)
+                                || excerpt.toLowerCase().contains(needle)
+                ) {
+                    filtered.put(p);
+                }
             }
+
             renderPosts(filtered);
+
         } catch (Exception e) {
             status.setText("Arama yapılamadı.");
         }
@@ -162,26 +215,49 @@ public class MainActivity extends Activity {
     private void renderPosts(JSONArray posts) {
         list.removeAllViews();
         status.setText(posts.length() + " haber gösteriliyor.");
+
         for (int i = 0; i < posts.length(); i++) {
             try {
                 JSONObject p = posts.getJSONObject(i);
-                String title = clean(p.getJSONObject("title").optString("rendered", "Başlıksız"));
-                String excerpt = clean(p.getJSONObject("excerpt").optString("rendered", ""));
+
+                String title = clean(
+                        p.getJSONObject("title").optString("rendered", "Başlıksız")
+                );
+
+                String excerpt = clean(
+                        p.getJSONObject("excerpt").optString("rendered", "")
+                );
+
                 String link = p.optString("link", SITE_URL);
                 String image = imageFromPost(p);
-                if (i == 0) addHero(title, excerpt, link, image);
-                else addCard(title, excerpt, link, image);
-            } catch (Exception ignored) {}
+
+                if (i == 0) {
+                    addHero(title, excerpt, link, image);
+                } else {
+                    addCard(title, excerpt, link, image);
+                }
+
+            } catch (Exception ignored) {
+            }
         }
     }
 
     private String imageFromPost(JSONObject p) {
         try {
             JSONObject embedded = p.optJSONObject("_embedded");
-            if (embedded == null) return "";
+
+            if (embedded == null) {
+                return "";
+            }
+
             JSONArray media = embedded.optJSONArray("wp:featuredmedia");
-            if (media == null || media.length() == 0) return "";
+
+            if (media == null || media.length() == 0) {
+                return "";
+            }
+
             return media.getJSONObject(0).optString("source_url", "");
+
         } catch (Exception e) {
             return "";
         }
@@ -191,6 +267,7 @@ public class MainActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackground(round("#151515", 24));
+
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-1, -2);
         cp.setMargins(0, dp(8), 0, dp(14));
         list.addView(card, cp);
@@ -198,7 +275,7 @@ public class MainActivity extends Activity {
         if (!TextUtils.isEmpty(imageUrl)) {
             ImageView img = new ImageView(this);
             img.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            img.setBackgroundColor(Color.rgb(220,220,220));
+            img.setBackgroundColor(Color.rgb(220, 220, 220));
             card.addView(img, new LinearLayout.LayoutParams(-1, dp(210)));
             new ImageTask(img).execute(imageUrl);
         }
@@ -215,11 +292,12 @@ public class MainActivity extends Activity {
         t.setPadding(0, dp(10), 0, dp(6));
         body.addView(t);
 
-        TextView e = text(cut(excerpt, 140), 14, Color.rgb(220,220,220), false);
+        TextView e = text(cut(excerpt, 140), 14, Color.rgb(220, 220, 220), false);
         body.addView(e);
 
         TextView open = button("HABERİ AÇ", THEME_COLOR, Color.WHITE);
         open.setOnClickListener(v -> openLink(link));
+
         LinearLayout.LayoutParams op = new LinearLayout.LayoutParams(-1, dp(48));
         op.setMargins(0, dp(12), 0, 0);
         body.addView(open, op);
@@ -229,6 +307,7 @@ public class MainActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackground(round("#ffffff", 20, "#eeeeee"));
+
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-1, -2);
         cp.setMargins(0, 0, 0, dp(14));
         list.addView(card, cp);
@@ -236,7 +315,7 @@ public class MainActivity extends Activity {
         if (!TextUtils.isEmpty(imageUrl)) {
             ImageView img = new ImageView(this);
             img.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            img.setBackgroundColor(Color.rgb(235,235,235));
+            img.setBackgroundColor(Color.rgb(235, 235, 235));
             card.addView(img, new LinearLayout.LayoutParams(-1, dp(175)));
             new ImageTask(img).execute(imageUrl);
         }
@@ -246,28 +325,40 @@ public class MainActivity extends Activity {
         body.setPadding(dp(16), dp(14), dp(16), dp(16));
         card.addView(body);
 
-        body.addView(text(title, 20, Color.rgb(20,20,20), true));
+        body.addView(text(title, 20, Color.rgb(20, 20, 20), true));
 
-        TextView e = text(cut(excerpt, 135), 15, Color.rgb(95,95,95), false);
+        TextView e = text(cut(excerpt, 135), 15, Color.rgb(95, 95, 95), false);
         e.setPadding(0, dp(8), 0, dp(12));
         body.addView(e);
 
-        TextView open = button("HABERİ AÇ", "#eeeeee", Color.rgb(20,20,20));
+        TextView open = button("HABERİ AÇ", "#eeeeee", Color.rgb(20, 20, 20));
         open.setOnClickListener(v -> openLink(link));
         body.addView(open, new LinearLayout.LayoutParams(-1, dp(44)));
     }
 
     private void openLink(String link) {
-        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(link))); } catch (Exception ignored) {}
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(link)));
+        } catch (Exception ignored) {
+        }
     }
 
     private String clean(String html) {
-        if (html == null) return "";
-        return Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY).toString().replaceAll("\s+", " ").trim();
+        if (html == null) {
+            return "";
+        }
+
+        return Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY)
+                .toString()
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     private String cut(String s, int len) {
-        if (s == null) return "";
+        if (s == null) {
+            return "";
+        }
+
         return s.length() > len ? s.substring(0, len) + "..." : s;
     }
 
@@ -276,7 +367,11 @@ public class MainActivity extends Activity {
         t.setText(s);
         t.setTextSize(size);
         t.setTextColor(color);
-        if (bold) t.setTypeface(Typeface.DEFAULT_BOLD);
+
+        if (bold) {
+            t.setTypeface(Typeface.DEFAULT_BOLD);
+        }
+
         return t;
     }
 
@@ -305,12 +400,17 @@ public class MainActivity extends Activity {
     }
 
     private int dp(int v) {
-        return (int)(v * getResources().getDisplayMetrics().density);
+        return (int) (v * getResources().getDisplayMetrics().density);
     }
 
     private class ImageTask extends AsyncTask<String, Void, Bitmap> {
         private final ImageView iv;
-        ImageTask(ImageView iv) { this.iv = iv; }
+
+        ImageTask(ImageView iv) {
+            this.iv = iv;
+        }
+
+        @Override
         protected Bitmap doInBackground(String... urls) {
             try {
                 InputStream input = new URL(urls[0]).openStream();
@@ -319,8 +419,12 @@ public class MainActivity extends Activity {
                 return null;
             }
         }
+
+        @Override
         protected void onPostExecute(Bitmap bitmap) {
-            if (bitmap != null) iv.setImageBitmap(bitmap);
+            if (bitmap != null) {
+                iv.setImageBitmap(bitmap);
+            }
         }
     }
 }
