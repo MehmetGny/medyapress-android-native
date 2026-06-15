@@ -22,7 +22,6 @@ public class MainActivity extends Activity {
 
 ```
 private static final String SITE_URL = "https://medya.press/";
-private static final long AUTO_REFRESH_MS = 120000;
 
 private WebView webView;
 private ProgressBar progressBar;
@@ -297,7 +296,4 @@ private int getStatusBarHeight() {
     }
 
     return result;
-}
-```
-
 }
