@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.graphics.Color;
+import android.view.View;
 import android.view.Window;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -14,6 +15,8 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.content.Intent;
 import android.net.Uri;
+import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 
 public class MainActivity extends Activity {
 
@@ -21,6 +24,7 @@ public class MainActivity extends Activity {
     private static final long AUTO_REFRESH_MS = 120000; // 2 dakika
 
     private WebView webView;
+    private ProgressBar progressBar;
     private Handler refreshHandler;
     private long lastRefreshTime = 0;
 
@@ -28,7 +32,10 @@ public class MainActivity extends Activity {
         @Override
         public void run() {
             refreshHomeIfNeeded();
-            refreshHandler.postDelayed(this, AUTO_REFRESH_MS);
+
+            if (refreshHandler != null) {
+                refreshHandler.postDelayed(this, AUTO_REFRESH_MS);
+            }
         }
     };
 
@@ -48,19 +55,50 @@ public class MainActivity extends Activity {
     private void setupWindow() {
         Window window = getWindow();
         window.setStatusBarColor(Color.WHITE);
+        window.setNavigationBarColor(Color.WHITE);
+
+        int flags = 0;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            window.getDecorView().setSystemUiVisibility(
-                    android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-            );
+            flags = flags | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
         }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            flags = flags | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
+
+        window.getDecorView().setSystemUiVisibility(flags);
     }
 
     private void setupWebView() {
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Color.WHITE);
+
+        // Telefon saat / batarya alanı sitenin üstüne binmesin diye güvenli boşluk.
+        root.setPadding(0, getStatusBarHeight(), 0, 0);
+
         webView = new WebView(this);
         webView.setBackgroundColor(Color.WHITE);
+        webView.setInitialScale(100);
 
-        setContentView(webView);
+        progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progressBar.setMax(100);
+        progressBar.setVisibility(View.VISIBLE);
+
+        FrameLayout.LayoutParams webParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        );
+
+        FrameLayout.LayoutParams progressParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                6
+        );
+
+        root.addView(webView, webParams);
+        root.addView(progressBar, progressParams);
+
+        setContentView(root);
 
         WebSettings settings = webView.getSettings();
 
@@ -69,26 +107,44 @@ public class MainActivity extends Activity {
         settings.setDatabaseEnabled(true);
         settings.setLoadsImagesAutomatically(true);
 
-        settings.setUseWideViewPort(true);
-        settings.setLoadWithOverviewMode(true);
+        // Önemli: WebView sayfayı genişletmesin.
+        settings.setUseWideViewPort(false);
+        settings.setLoadWithOverviewMode(false);
+
+        // Önemli: Telefon yazı büyütme ayarı haber başlıklarını şişirmesin.
+        settings.setTextZoom(100);
 
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
         settings.setSupportZoom(false);
 
         settings.setMediaPlaybackRequiresUserGesture(false);
-
-        // Yeni haberleri daha hızlı görmek için cache minimumda tutulur.
         settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         }
 
         webView.clearCache(false);
-        webView.clearHistory();
 
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onProgressChanged(WebView view, int progress) {
+                if (progressBar != null) {
+                    progressBar.setProgress(progress);
+
+                    if (progress >= 100) {
+                        progressBar.setVisibility(View.GONE);
+                    } else {
+                        progressBar.setVisibility(View.VISIBLE);
+                    }
+                }
+            }
+        });
 
         webView.setWebViewClient(new WebViewClient() {
 
@@ -101,6 +157,12 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return handleUrl(url);
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                forceMobileViewport(view);
             }
 
             private boolean handleUrl(String url) {
@@ -122,6 +184,36 @@ public class MainActivity extends Activity {
                 }
             }
         });
+    }
+
+    private void forceMobileViewport(WebView view) {
+        if (view == null) {
+            return;
+        }
+
+        String js =
+                "(function() {" +
+                        "var head = document.head || document.getElementsByTagName('head')[0];" +
+                        "if (head) {" +
+                        "var meta = document.querySelector('meta[name=\"viewport\"]');" +
+                        "if (!meta) {" +
+                        "meta = document.createElement('meta');" +
+                        "meta.name = 'viewport';" +
+                        "head.appendChild(meta);" +
+                        "}" +
+                        "meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');" +
+                        "}" +
+                        "document.documentElement.style.maxWidth = '100%';" +
+                        "document.documentElement.style.overflowX = 'hidden';" +
+                        "if (document.body) {" +
+                        "document.body.style.maxWidth = '100%';" +
+                        "document.body.style.overflowX = 'hidden';" +
+                        "}" +
+                        "})();";
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            view.evaluateJavascript(js, null);
+        }
     }
 
     private void refreshHomeIfNeeded() {
@@ -158,7 +250,6 @@ public class MainActivity extends Activity {
 
         long now = System.currentTimeMillis();
 
-        // Uygulama arka plandan dönünce 1 dakikadan fazla geçmişse ana sayfayı tazeler.
         if (now - lastRefreshTime > 60000) {
             refreshHomeIfNeeded();
         }
@@ -195,5 +286,16 @@ public class MainActivity extends Activity {
         }
 
         super.onBackPressed();
+    }
+
+    private int getStatusBarHeight() {
+        int result = 0;
+        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+
+        if (resourceId > 0) {
+            result = getResources().getDimensionPixelSize(resourceId);
+        }
+
+        return result;
     }
 }
