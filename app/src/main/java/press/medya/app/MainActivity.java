@@ -8,6 +8,7 @@ import android.os.Looper;
 import android.graphics.Color;
 import android.view.View;
 import android.view.Window;
+import android.webkit.CookieManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -22,6 +23,11 @@ public class MainActivity extends Activity {
 
     private static final String SITE_URL = "https://medya.press/";
     private static final long AUTO_REFRESH_MS = 120000;
+
+    private static final String MOBILE_USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 14; Mobile) " +
+                    "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                    "Chrome/126.0.0.0 Mobile Safari/537.36";
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -105,17 +111,18 @@ public class MainActivity extends Activity {
         settings.setDatabaseEnabled(true);
         settings.setLoadsImagesAutomatically(true);
 
-        settings.setUseWideViewPort(false);
-        settings.setLoadWithOverviewMode(false);
+        settings.setUserAgentString(MOBILE_USER_AGENT);
 
-        settings.setTextZoom(125);
+        settings.setUseWideViewPort(true);
+        settings.setLoadWithOverviewMode(false);
+        settings.setTextZoom(110);
 
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
         settings.setSupportZoom(false);
 
         settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
@@ -125,7 +132,12 @@ public class MainActivity extends Activity {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         }
 
-        webView.clearCache(false);
+        CookieManager cookieManager = CookieManager.getInstance();
+        cookieManager.setAcceptCookie(true);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            cookieManager.setAcceptThirdPartyCookies(webView, true);
+        }
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -158,7 +170,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                forceSafeWidth(view);
+                applyMobileViewport(view);
             }
 
             private boolean handleUrl(String url) {
@@ -182,18 +194,28 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void forceSafeWidth(WebView view) {
+    private void applyMobileViewport(WebView view) {
         if (view == null) {
             return;
         }
 
         String js =
                 "(function() {" +
-                        "document.documentElement.style.maxWidth='100%';" +
-                        "document.documentElement.style.overflowX='hidden';" +
-                        "if(document.body){" +
-                        "document.body.style.maxWidth='100%';" +
-                        "document.body.style.overflowX='hidden';" +
+                        "var head = document.head || document.getElementsByTagName('head')[0];" +
+                        "if (head) {" +
+                        "var meta = document.querySelector('meta[name=viewport]');" +
+                        "if (!meta) {" +
+                        "meta = document.createElement('meta');" +
+                        "meta.name = 'viewport';" +
+                        "head.appendChild(meta);" +
+                        "}" +
+                        "meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');" +
+                        "}" +
+                        "document.documentElement.style.maxWidth = '100%';" +
+                        "document.documentElement.style.overflowX = 'hidden';" +
+                        "if (document.body) {" +
+                        "document.body.style.maxWidth = '100%';" +
+                        "document.body.style.overflowX = 'hidden';" +
                         "}" +
                         "})();";
 
