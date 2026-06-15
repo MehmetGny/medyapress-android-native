@@ -97,23 +97,36 @@ public class MainActivity extends Activity {
         top.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(top);
 
+        ImageView brandLogo = new ImageView(this);
+        brandLogo.setImageResource(R.drawable.medyapress_logo);
+        brandLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        brandLogo.setAdjustViewBounds(true);
+
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(66), dp(66));
+        logoParams.setMargins(0, 0, dp(12), 0);
+        top.addView(brandLogo, logoParams);
+
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         top.addView(brand, new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView logo = new TextView(this);
-        logo.setText("MedyaPress");
-        logo.setTextColor(Color.WHITE);
-        logo.setTextSize(34);
-        logo.setTypeface(Typeface.DEFAULT_BOLD);
-        logo.setLetterSpacing(-0.03f);
-        brand.addView(logo);
+        TextView logoText = new TextView(this);
+        logoText.setText("MedyaPress");
+        logoText.setTextColor(Color.WHITE);
+        logoText.setTextSize(30);
+        logoText.setTypeface(Typeface.DEFAULT_BOLD);
+        logoText.setLetterSpacing(-0.03f);
+        logoText.setSingleLine(true);
+        logoText.setEllipsize(TextUtils.TruncateAt.END);
+        brand.addView(logoText);
 
         TextView sub = new TextView(this);
         sub.setText("Küresel Dijital Haber Ağı");
         sub.setTextColor(Color.parseColor("#dddddd"));
         sub.setTextSize(14);
         sub.setPadding(0, dp(3), 0, 0);
+        sub.setSingleLine(true);
+        sub.setEllipsize(TextUtils.TruncateAt.END);
         brand.addView(sub);
 
         TextView refresh = pill("YENİLE", THEME_ORANGE, "#ffffff", 14);
@@ -145,9 +158,11 @@ public class MainActivity extends Activity {
         hsv.addView(row);
 
         String[] chips = {"MANŞET", "GÜNDEM", "DÜNYA", "YAŞAM", "SPOR", "MAGAZİN", "RÖPORTAJ"};
+
         for (String c : chips) {
             TextView chip = pill(c, "#ffffff", "#222222", 13);
             chip.setBackground(round("#ffffff", 18, "#e2e2e2"));
+
             LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-2, dp(38));
             cp.setMargins(0, 0, dp(8), 0);
             row.addView(chip, cp);
@@ -201,6 +216,7 @@ public class MainActivity extends Activity {
             con.setReadTimeout(18000);
 
             br = new BufferedReader(new InputStreamReader(con.getInputStream()));
+
             StringBuilder sb = new StringBuilder();
             String line;
 
@@ -580,9 +596,15 @@ public class MainActivity extends Activity {
         fp.setMargins(0, dp(18), 0, 0);
         content.addView(footer, fp);
 
+        ImageView footerLogo = new ImageView(this);
+        footerLogo.setImageResource(R.drawable.medyapress_logo);
+        footerLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        footer.addView(footerLogo, new LinearLayout.LayoutParams(dp(70), dp(70)));
+
         TextView logo = smallText("MedyaPress", "#ffffff", 24);
         logo.setTypeface(Typeface.DEFAULT_BOLD);
         logo.setGravity(Gravity.CENTER);
+        logo.setPadding(0, dp(8), 0, 0);
         footer.addView(logo);
 
         TextView slogan = smallText("Dünyayı Sizin İçin Takip Ediyoruz!", "#cccccc", 14);
@@ -654,21 +676,23 @@ public class MainActivity extends Activity {
             if (media == null || media.length() == 0) return "";
 
             JSONObject item = media.getJSONObject(0);
+            JSONObject details = item.optJSONObject("media_details");
 
-            JSONObject sizes = item.optJSONObject("media_details")
-                    .optJSONObject("sizes");
+            if (details != null) {
+                JSONObject sizes = details.optJSONObject("sizes");
 
-            if (sizes != null) {
-                if (sizes.has("large")) {
-                    return sizes.getJSONObject("large").optString("source_url", "");
-                }
+                if (sizes != null) {
+                    if (sizes.has("large")) {
+                        return sizes.getJSONObject("large").optString("source_url", "");
+                    }
 
-                if (sizes.has("medium_large")) {
-                    return sizes.getJSONObject("medium_large").optString("source_url", "");
-                }
+                    if (sizes.has("medium_large")) {
+                        return sizes.getJSONObject("medium_large").optString("source_url", "");
+                    }
 
-                if (sizes.has("medium")) {
-                    return sizes.getJSONObject("medium").optString("source_url", "");
+                    if (sizes.has("medium")) {
+                        return sizes.getJSONObject("medium").optString("source_url", "");
+                    }
                 }
             }
 
